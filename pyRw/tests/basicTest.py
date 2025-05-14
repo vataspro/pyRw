@@ -1,6 +1,6 @@
 import numpy as np
-import src.multirw as mrw
-from src.utils import testutils as tu
+import pyRw.multirw as mrw
+from pyRw.utils import testutils as tu
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 from scipy.optimize import fsolve
-import src.utils.histutils as hu
+import pyRw.utils.histutils as hu
 from typing import Callable
 import numpy as np
 
