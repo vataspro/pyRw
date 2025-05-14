@@ -71,7 +71,6 @@ class MultiRw:
     # Get the expval of the action
     def expval(self, 
                beta, 
-               logZ : np.ndarray, 
                o : Callable[[np.ndarray], np.ndarray]):
         """
         Get the expectation value of an observable
@@ -88,7 +87,7 @@ class MultiRw:
         x = self.actionValues
         O = o(self.actionValues)
 
-        eta = self.Eta(logZ, x)  # shape (n_x,)
+        eta = self.Eta(self.logZ, x)  # shape (n_x,)
         weights = np.exp(-beta[:, None] * x[None, :])  # shape (n_beta, n_x)
 
         numerator = np.sum(O[None, :] * eta[None, :] * weights, axis=1)

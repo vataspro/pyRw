@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # Plot the reweight
     plotBeta = np.linspace(0.8, 3.5, 10)
-    rw_vals = multirw.expval(plotBeta, multirw.logZ, lambda x : x**(n/2))
+    rw_vals = multirw.expval(plotBeta,  lambda x : x**(n/2))
 
     plt.plot(plotBeta, rw_vals, 'k', label='pyRw')
 
