@@ -62,7 +62,7 @@ def integrand(x, sigma, n=2):
 
 # Compute <x^n> numerically
 def expval_xn(sigma, n=2):
-    result, error = quad(integrand, -np.inf, np.inf, args=(sigma,))
+    result, error = quad(integrand, -np.inf, np.inf, args=(sigma,n))
     return result
 
 
