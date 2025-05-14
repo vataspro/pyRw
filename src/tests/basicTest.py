@@ -9,7 +9,7 @@ if __name__ == "__main__":
     betas = [1.0, 2.0,  3.0]
 
     # Plot <x^n> for different distributions
-    n = 2
+    n = 4
 
     # Number of bins to use when histogramming
     bins = 250
@@ -27,29 +27,27 @@ if __name__ == "__main__":
 
     # Plot the reweight
     plotBeta = np.linspace(0.8, 3.5, 10)
-    rw_vals = np.array([multirw.expval(b, multirw.logZ) for b in plotBeta])
+    rw_vals = multirw.expval(plotBeta, multirw.logZ, lambda x : x**(n/2))
 
     plt.plot(plotBeta, rw_vals, 'k', label='pyRw')
 
+    # Plot <x**2> directly from the MC chains
+    errs = np.array([tu.sampleError(ens) for ens in x])
+    plt.errorbar(betas, [np.mean(ens**n) for ens in x], yerr=errs,
+                    marker='o', ls='none', label='MCMC')
 
-    # Numerical intergration of <x^2>
+
+    # Numerical intergration of <x^n>
     # Range of sigma values
     betas2 = np.linspace(1., 3., 50)
     sigmas = 1/np.sqrt(2*betas2)
-    expvals = [tu.expval_xn(sigma) for sigma in sigmas]
-    theory = sigmas**2  # analytical result
+    expvals = [tu.expval_xn(sigma, n) for sigma in sigmas]
 
     # Plot 
     plt.plot(betas2, expvals, label=r'Numerical $\langle x^2 \rangle$', lw=2)
-    plt.plot(betas2, theory, '--', label=r'Analytical $\sigma^2$', lw=2)
-
-    # Plot <x**2> directly from the MC chains
-    errs = np.array([tu.sampleError(ens) for ens in x])
-    plt.errorbar(betas, [np.mean(ens**2) for ens in x], yerr=errs,
-                    marker='o', ls='none', label='MCMC')
 
     # Monte Carlo using numpy normal
-    mc = [np.mean(np.random.normal(scale=1/np.sqrt(2*b), size=10000)**2) for b in plotBeta]
+    mc = [np.mean(np.random.normal(scale=1/np.sqrt(2*b), size=10000)**n) for b in plotBeta]
     plt.plot(plotBeta, mc, label='MC on gaussian')
     
     plt.legend()
