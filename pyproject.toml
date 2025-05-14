@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyRws"
+version = "0.0.1"
+authors = [{name="alexis", email="2414441@swansea.ac.uk"}]
+description = "Tool for multiple histogram reweighting"
+readme = "README.md"
+requires-python = ">= 3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/vataspro/pyRw"
+"Bug Tracker" = "https://github.com/vataspro/pyRw/issues"
