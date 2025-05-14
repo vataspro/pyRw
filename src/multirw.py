@@ -1,5 +1,6 @@
 from scipy.optimize import fsolve
 import src.utils.histutils as hu
+from typing import Callable
 import numpy as np
 
 """
@@ -67,11 +68,30 @@ class MultiRw:
         self.logZ = fsolve(self.equation, x0=self.logZ)
 
     # Get the expval of the action
-    def expval(self, beta, logZ):
-        weights = np.exp(-beta * self.actionValues)
-        eta = self.Eta(logZ, self.actionValues)
+    def expval(self, 
+               beta, 
+               logZ : np.ndarray, 
+               o : Callable[[np.ndarray], np.ndarray]):
+        """
+        Get the expectation value of an observable
+        at inverse temperature beta.
 
-        numerator = np.sum(self.actionValues * eta * weights)
-        denominator = np.sum(eta * weights)
+        The observable is a function of the action.
 
-        return numerator / denominator
+        Inputs:
+            o : function of self.actionValues, the observable
+         beta : scalar or 1D array
+
+        """
+        beta = np.atleast_1d(beta)
+        x = self.actionValues
+        O = o(self.actionValues)
+
+        eta = self.Eta(logZ, x)  # shape (n_x,)
+        weights = np.exp(-beta[:, None] * x[None, :])  # shape (n_beta, n_x)
+
+        numerator = np.sum(O[None, :] * eta[None, :] * weights, axis=1)
+        denominator = np.sum(eta[None, :] * weights, axis=1)
+
+        result = numerator / denominator
+        return result if result.shape != (1,) else result[0]
