@@ -45,6 +45,7 @@ class MultiRw:
 
         # Initialize logZ
         self.logZ = np.zeros(self.multiHistogram.numHistograms)
+        self.setLogZ()
 
     # This is the density -- vectorised in xval
     def Eta(self, logZ, xval):

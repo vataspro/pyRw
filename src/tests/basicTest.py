@@ -23,7 +23,6 @@ if __name__ == "__main__":
     
     # Setup the multiple reweighting
     multirw = mrw.MultiRw([np.array(x_)**2 for x_ in x], betas, bins=bins)
-    multirw.setLogZ()
 
     # Plot the reweight
     plotBeta = np.linspace(0.8, 3.5, 10)
