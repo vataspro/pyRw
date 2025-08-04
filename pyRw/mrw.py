@@ -59,7 +59,7 @@ class MultiRw:
 
         # Initialise variables
         self.betas = np.array(betas)
-        self.logN = np.array([len(e) for e in E])
+        self.logN = np.array([np.log(len(e)) for e in self.E])
 
         # LogZ computation or loading
         if logZ is None:
