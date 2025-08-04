@@ -172,9 +172,11 @@ def itersolve(logN, betas, E, tol=1e-10, max_iter=50000, verbose=True):
         getLogZ(f_old, logN, betas, betas, E, f)
 
         # As the free energy is defined up to a constant,
-        #  some value has to fixed -- otherwise the solver does not coverge
-        # this can be seen as a 'gauge fixing'
-        f -= f[0] - 1
+        # some value has to be fixed,
+        # otherwise the solver does not coverge,
+        # exhibiting 'drifting' behaviour.
+        # This can be seen as a 'gauge fixing'
+        f -= np.mean(f)  # Could also fix with 'f -= f[0] - 1'
 
         # Check convergence up to gauge
         delta = f - f_old
