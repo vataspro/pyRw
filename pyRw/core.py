@@ -79,7 +79,7 @@ def getLogZ(logZ, logN, betas, beta, Es, newLogZ):
         [2] https://www.mv.helsinki.fi/home/rummukai/lectures/montecarlo_oulu/lectures/mc_notes4.pdf
 
     """
-    for k in range(logZ.shape[0]):
+    for k in range(beta.shape[0]):
         c = np.empty_like(Es)
         for i in range(Es.shape[0]):
             c[i] = -logsumexp1d(logN - logZ + (beta[k] - betas) * Es[i])
