@@ -42,7 +42,7 @@ class MultiRw:
 
     def __init__(self, betas, E, logZ=None, autocorr=False, verbose=True):
         # Guard
-        pyRw.utils.ensureValidObservable(E)
+        pyRw.utils.ensureValidObservableShape(E)
         if len(E) != len(betas):
             raise ValueError("Provided betas and E dimension mismatch.")
 
@@ -93,7 +93,7 @@ class MultiRw:
         """
 
         # Setup
-        pyRw.utils.ensureValidObservable(Q)
+        pyRw.utils.ensureValidObservableShape(Q)
         pyRw.utils.checkObservableNotNegative(Q)
         if self.autocorr:
             Q_ = pyRw.utils.binObservable(Q, self.nskips)
