@@ -12,6 +12,7 @@ import numpy as np
 import pyRw.autocorr
 import pyRw.core
 import pyRw.utils
+from copy import deepcopy
 
 
 class MultiRw:
@@ -98,7 +99,7 @@ class MultiRw:
         if self.autocorr:
             Q_ = pyRw.utils.binObservable(Q, self.nskips)
         else:
-            Q_ = np.copy(Q)
+            Q_ = deepcopy(Q)
         pyRw.utils.ensureSameShape2d(self.E, Q_)
 
         # Reweight
