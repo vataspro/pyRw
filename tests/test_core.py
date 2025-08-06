@@ -44,6 +44,8 @@ def testGetLogZ():
 
     targetb = np.array([1.08, 1.14, 0.96, 1.22])
 
+    Z0 = np.random.random(n) + 1
+
     # Naive implementation of reweighting
     Z = []
     for k in range(K):
@@ -52,14 +54,59 @@ def testGetLogZ():
             for s in range(len(E[i])):
                 SUM_ = 0
                 for j in range(n):
-                    SUM_ += len(E[j]) * 1 * np.exp((targetb[k] - betas[j]) * E[i][s])
+                    SUM_ += (
+                        len(E[j]) / Z0[j] * np.exp((targetb[k] - betas[j]) * E[i][s])
+                    )
                 SUM += 1 / SUM_
         Z.append(SUM)
 
     # pyRw implementation
-    logZ = np.zeros(n)
     logN = np.log([len(e) for e in E])
     newLogZ = np.empty(K)
-    newLogZ = pyRw.core.getLogZ(logZ, logN, betas, targetb, np.concatenate(E), newLogZ)
+    newLogZ = pyRw.core.getLogZ(
+        np.log(Z0), logN, betas, targetb, np.concatenate(E), newLogZ
+    )
 
     assert np.allclose(newLogZ, np.log(Z))
+
+
+def testGetQn():
+    # Compare getQn with naive implementation
+    n = 3  # number of ensembles
+    K = 4  # number of target beta values
+
+    betas = np.array([1.0, 1.1, 1.2])
+    E = [[1.0, 1.01], [1.5, 1.49, 1.51], [2.1, 2.01]]
+
+    Q = [np.random.random(len(e)) for e in E]
+
+    targetb = np.array([1.08, 1.14, 0.96, 1.22])
+
+    Z0 = 1 + np.arange(n)
+
+    # Naive implementation of reweighting
+    Qrw = []
+    for k in range(K):
+        QSUM = 0
+        ZSUM = 0
+        for i in range(n):
+            for s in range(len(E[i])):
+                SUM_ = 0
+                for j in range(n):
+                    SUM_ += (
+                        len(E[j]) / Z0[j] * np.exp((targetb[k] - betas[j]) * E[i][s])
+                    )
+
+                QSUM += Q[i][s] / SUM_
+                ZSUM += 1 / SUM_
+
+        Qrw.append(QSUM / ZSUM)
+
+    # pyRw implementation
+    logN = np.log([len(e) for e in E])
+    newQ = np.empty_like(targetb)
+
+    pyRw.core.getQn(
+        np.log(Z0), logN, betas, targetb, np.concatenate(E), np.concatenate(Q), 1, newQ
+    )
+    assert np.allclose(Qrw, newQ)
