@@ -41,7 +41,9 @@ class MultiRw:
 
     """
 
-    def __init__(self, betas, E, logZ=None, autocorr=False, verbose=True):
+    def __init__(
+        self, betas, E, logZ=None, autocorr=False, verbose=True, max_iter=100000
+    ):
         # Guard
         pyRw.utils.ensureValidObservableShape(E)
         if len(E) != len(betas):
@@ -65,7 +67,11 @@ class MultiRw:
         # LogZ computation or loading
         if logZ is None:
             self.logZ = pyRw.core.itersolve(
-                self.logN, self.betas, np.concatenate(self.E), verbose=self.verbose
+                self.logN,
+                self.betas,
+                np.concatenate(self.E),
+                verbose=self.verbose,
+                max_iter=max_iter,
             )
         else:
             if not len(betas) == len(logZ):
