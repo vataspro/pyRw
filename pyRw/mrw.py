@@ -42,7 +42,7 @@ class MultiRw:
     """
 
     def __init__(
-        self, betas, E, logZ=None, autocorr=False, verbose=True, max_iter=100000
+        self, betas, E, logZ=None, autocorr=False, verbose=True, max_iter=100000, tol=1e-10
     ):
         # Guard
         pyRw.utils.ensureValidObservableShape(E)
@@ -51,6 +51,7 @@ class MultiRw:
 
         self.autocorr = autocorr
         self.verbose = verbose
+
 
         # Autocorrelation
         if self.autocorr:
@@ -72,6 +73,7 @@ class MultiRw:
                 np.concatenate(self.E),
                 verbose=self.verbose,
                 max_iter=max_iter,
+                tol=tol
             )
         else:
             if not len(betas) == len(logZ):
