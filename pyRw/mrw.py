@@ -42,7 +42,14 @@ class MultiRw:
     """
 
     def __init__(
-        self, betas, E, logZ=None, autocorr=False, verbose=True, max_iter=100000, tol=1e-10
+        self,
+        betas,
+        E,
+        logZ=None,
+        autocorr=False,
+        verbose=True,
+        max_iter=100000,
+        tol=1e-10,
     ):
         # Guard
         pyRw.utils.ensureValidObservableShape(E)
@@ -51,7 +58,6 @@ class MultiRw:
 
         self.autocorr = autocorr
         self.verbose = verbose
-
 
         # Autocorrelation
         if self.autocorr:
@@ -73,7 +79,7 @@ class MultiRw:
                 np.concatenate(self.E),
                 verbose=self.verbose,
                 max_iter=max_iter,
-                tol=tol
+                tol=tol,
             )
         else:
             if not len(betas) == len(logZ):
@@ -125,3 +131,85 @@ class MultiRw:
         )
 
         return q
+
+
+"""
+Run the SimpleRw program to boostrap and reweight
+an observable and its susceptibility.
+
+    Inputs:
+        betas   :   1d list
+                The beta values of the ensembles
+        action  :   2d list
+                The action measurements at each beta value.
+        observable : 2d list
+                Observable measurements. Same shape as action.
+        target_betas : 1d np.ndarray
+                Target beta values to reweight at.
+        num_bootstraps : int
+                Number of bootstrap samples used in the calculation.
+        volume  :   int
+                Lattice volume Nt*Nx*Ny*Nz
+        tau     :   1d list
+                Integrated autocorrelation time for each ensemble.
+
+    Returns:
+        mean_obs :  1d np.ndarray
+                mean value of the observable
+        error_obs :  1d np.ndarray
+                bootstrap error of the observable
+        mean_susc :  1d np.ndarray
+                mean value of the susceptibility
+        error_susc :  1d np.ndarray
+                bootstrap error of the susceptibility
+"""
+
+
+def SimpleRw(
+    betas,
+    action,
+    observable,
+    target_betas,
+    num_bootstraps,
+    volume,
+    tau=None,
+    verbose=False,
+):
+    # Calculate autocorrelation times
+    if tau is None:
+        tau = [
+            pyRw.autocorr.integrated_autocorrelation_time(observable[i])
+            for i in range(len(betas))
+        ]
+
+    # Resize samples for autocorrelation
+    bs_sizes = [len(action[i]) // (2 * int(np.ceil(tau[i]))) for i in range(len(betas))]
+
+    # Bootstrap observable and susceptibility
+    bs_samples_susc = []
+    bs_samples_obs = []
+    for _ in range(num_bootstraps):
+        # Aggregate sample action and observable measurements
+        action_ = []
+        observable_ = []
+        for i in range(len(betas)):
+            bs_idx = np.random.randint(0, len(action[i]), bs_sizes[i])
+            action_.append(np.array(action[i][bs_idx]))
+            observable_.append(np.array(observable[i][bs_idx]))
+
+        # Reweight
+        mrw = MultiRw(betas, action_, verbose=verbose)
+        x = mrw.reweight(observable_, target_betas)
+        x2 = mrw.reweight(observable_, target_betas, n=2)
+
+        # Collect results
+        bs_samples_susc.append(volume * (x2 - x**2))
+        bs_samples_obs.append(x)
+
+    # Calculate bootstrap mean and error
+    mean_obs = np.mean(bs_samples_obs, axis=0)
+    error_obs = np.std(bs_samples_obs, axis=0)
+    mean_susc = np.mean(bs_samples_susc, axis=0)
+    error_susc = np.std(bs_samples_susc, axis=0)
+
+    return mean_obs, error_obs, mean_susc, error_susc
