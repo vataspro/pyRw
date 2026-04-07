@@ -39,9 +39,9 @@ def logsumexp1d(a):
 
 # Single histogram reweighting
 @guvectorize(
-    "float64[:], float64[:], float64, float64[:], float64[:]", "(m),(m),(),(k)->(k)"
+    "float64[:], float64[:], float64, float64[:], int32, float64[:]", "(m),(m),(),(k),()->(k)"
 )
-def HistogramReweight(E, Q, beta_0, beta, newQ):
+def HistogramReweight(E, Q, beta_0, beta, n, newQ):
     """
     Single histogram reweighting: interpolate the
     value of the observable Q, using the measured values
@@ -68,7 +68,7 @@ def HistogramReweight(E, Q, beta_0, beta, newQ):
         den = 0.0
         d_beta = beta_0 - beta[k]
         mask = Q > 0.0
-        num = logsumexp1d(np.log(Q[mask]) + d_beta * E[mask])
+        num = logsumexp1d(n * np.log(Q[mask]) + d_beta * E[mask])
         den = logsumexp1d(d_beta * E[mask])
 
         newQ[k] = np.exp(num - den)
