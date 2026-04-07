@@ -17,6 +17,12 @@ def testSumlogexp():
     N = 10
     assert all([np.log(n) == pyRw.core.logsumexp1d(np.zeros(n)) for n in range(1, N)])
 
+    # returns correct values for ones
+    n = np.arange(1, N)
+    assert np.allclose(
+        [pyRw.core.logsumexp1d(np.ones(n_)) for n_ in n], np.log(n * np.e)
+    )
+
     # This sum breaks normal numpy, but not logsumexp
     with pytest.warns(RuntimeWarning, match="overflow"):
         assert np.inf == np.log(np.exp(1) + np.exp(10**4))
