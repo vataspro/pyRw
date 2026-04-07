@@ -10,7 +10,7 @@ vectorisation has been implemented.
 """
 
 import numpy as np
-from numba import njit, guvectorize
+from numba import prange, njit, guvectorize
 
 
 # Calculation of logsumexp for a 1D array
@@ -35,6 +35,43 @@ def logsumexp1d(a):
     for i in range(a.shape[0]):
         exp_sum += np.exp(a[i] - megisto)
     return megisto + np.log(exp_sum)
+
+
+# Single histogram reweighting
+@guvectorize(
+    "float64[:], float64[:], float64, float64[:], float64[:]", "(m),(m),(),(k)->(k)"
+)
+def HistogramReweight(E, Q, beta_0, beta, newQ):
+    """
+    Single histogram reweighting: interpolate the
+    value of the observable Q, using the measured values
+    of E and Q sampled at beta_0 at the target beta values.
+
+    Inputs:
+        E : numpy.ndarray [m]
+            The measured values of the energy (or Euclidean action).
+        Q : numpy.ndarray [m]
+            The measured values of the observable to interpolate.
+        beta_0 : float
+            The value of beta at the source ensemble.
+        beta: numpy.ndarray [k]
+            The target beta values to interpolate at.
+
+    Outputs:
+        newQ : numpy.ndarray [k]
+            The interpolated values of the observable at the
+            target beta values.
+
+    """
+    for k in prange(beta.shape[0]):
+        num = 0.0
+        den = 0.0
+        d_beta = beta_0 - beta[k]
+        mask = Q > 0.0
+        num = logsumexp1d(np.log(Q[mask]) + d_beta * E[mask])
+        den = logsumexp1d(d_beta * E[mask])
+
+        newQ[k] = np.exp(num - den)
 
 
 @guvectorize(
