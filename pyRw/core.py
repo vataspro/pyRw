@@ -37,11 +37,28 @@ def logsumexp1d(a):
     return megisto + np.log(exp_sum)
 
 
+@guvectorize(
+    "float64[:], float64[:], float64, float64[:], float64[:]", "(m),(m),(),(k)->(k)"
+)
+def SingleHistogramReweight(E, Q, beta_0, beta, newQ):
+    for k in range(beta.shape[0]):
+        num = 0.0
+        den = 0.0
+        d_beta = beta_0 - beta[k]
+        for i in range(E.shape[0]):
+            w = np.exp(d_beta * E[i])
+            num += Q[i] * w
+            den += w
+
+        newQ[k] = num / den
+
+
 # Single histogram reweighting
 @guvectorize(
-    "float64[:], float64[:], float64, float64[:], int32, float64[:]", "(m),(m),(),(k),()->(k)"
+    "float64[:], float64[:], float64, float64[:], int32, float64[:]",
+    "(m),(m),(),(k),()->(k)",
 )
-def HistogramReweight(E, Q, beta_0, beta, n, newQ):
+def SingleHistogramReweightLogsumexp(E, Q, beta_0, beta, n, newQ):
     """
     Single histogram reweighting: interpolate the
     value of the observable Q, using the measured values
