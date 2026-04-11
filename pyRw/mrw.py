@@ -12,6 +12,7 @@ import numpy as np
 import pyRw.autocorr
 import pyRw.core
 import pyRw.utils
+import pyRw.ndimcore
 from copy import deepcopy
 
 
@@ -213,3 +214,21 @@ def BootstrapRw(
     error_susc = np.std(bs_samples_susc, axis=0)
 
     return mean_obs, error_obs, mean_susc, error_susc
+
+
+class ndMrw:
+
+    def __init__(self, kappa0, J):
+
+        #self.J = np.concatenate(J)
+        self.J = np.vstack([np.concatenate([l[:, i] for l in J]) for i in range(J[0].shape[1])]).T
+        self.kappa0 = kappa0
+        
+        self.logN = [np.log(j.shape[0]) for j in J]
+        self.logZ = pyRw.ndimcore.ndItersolve(self.logN, kappa0, self.J)
+
+    def reweight(self, Q, kappa, n=1):
+        newQ = np.empty(kappa.shape[0])
+        pyRw.ndimcore.ndGetQn(self.logZ, self.logN, self.kappa0, kappa, self.J, Q, n, newQ)
+        return newQ
+
