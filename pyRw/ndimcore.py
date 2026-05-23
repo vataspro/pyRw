@@ -1,5 +1,5 @@
 """
-pyRw/core.py
+pyRw/ndimcore.py
 
 Core functions for computation of the
 n-dimensional parameter multiple histogram reweighting.
@@ -10,42 +10,49 @@ vectorisation has been implemented.
 """
 
 import numpy as np
+from pyRw.core import logsumexp1d
 from numba import njit, guvectorize
 
 
-# Calculation of logsumexp for a 1D array
-@njit
-def logsumexp1d(a):
+# Naive single histogram reweighting
+@guvectorize(
+    "float64[:,:], float64[:], float64[:], float64[:,:], float64[:]",
+    "(m,l),(m),(l),(o,l)->(o)",
+)
+def ndSingleHistogramReweight(J, Q, kappa_0, kappa, newQ):
     """
-    Numerically stable calculation of
-    log(e^a0 + e^a1 + ... + e^an)
+        Naive single histogram reweighting without the use
+        of logsumexp.
+        May fail if the actions are different orders of magnitude!
+
 
     Inputs:
-        a   :   numpy.ndarray
-            Set of numbers to apply the logsumexp function to.
 
-    Returns:
-        float
+        J : list of 1d arrays (m, l)
+            The conjugate observables contributing to the action.
 
-    References:
-        [1] https://gregorygundersen.com/blog/2020/02/09/log-sum-exp/
+        Q : 1d array (m)
+            The measured values of the observable.
+
+        kappa_0 : 1d array (l)
+            The value of the vector parameter at the source ensemble.
+
+        kappa : 2d array (o, l)
+            Values of the parameter to interpolate at.
+
+
+    Dimensions:
+        m : total number of measurements
+        l : parameter dimension
+        o : number of target points
+
+    Outputs :
+        newQ : 1d array (o)
+            Interpolated value of the observable.
+
+        newQ :
+
     """
-    megisto = np.max(a)
-    exp_sum = 0.0
-    for i in range(a.shape[0]):
-        exp_sum += np.exp(a[i] - megisto)
-    return megisto + np.log(exp_sum)
-
-
-# Single histogram reweighting
-@guvectorize(
-        "float64[:,:], float64[:], float64[:], float64[:,:], float64[:]", 
-        "(m,l),(m),(l),(o,l)->(o)"
-)
-# m the total number of measurements
-# l the number of parameters / observables
-# o the number of target points
-def ndSingleHistogramReweight(J, Q, kappa_0, kappa, newQ):
 
     for k in range(kappa.shape[0]):
         num = 0.0
@@ -61,8 +68,8 @@ def ndSingleHistogramReweight(J, Q, kappa_0, kappa, newQ):
 
 # Single histogram reweighting with logsumexp
 @guvectorize(
-        "float64[:,:], float64[:], float64[:], float64[:,:], int32, float64[:]",
-         "(m,l),(m),(l),(o,l),()->(o)",
+    "float64[:,:], float64[:], float64[:], float64[:,:], int32, float64[:]",
+    "(m,l),(m),(l),(o,l),()->(o)",
 )
 # m number of measurements
 # l the number of parameters
@@ -101,7 +108,7 @@ def ndSingleHistogramReweightLogsumexp(J, Q, kappa_0, kappa, n, newQ):
 
 
 @guvectorize(
-        "float64[:], float64[:], float64[:,:], float64[:,:], float64[:,:], float64[:]",
+    "float64[:], float64[:], float64[:,:], float64[:,:], float64[:,:], float64[:]",
     "(m),(m),(k,q),(m,q),(l,q)->(k)",
 )
 # m number source ensembles
@@ -112,15 +119,16 @@ def ndGetLogZ(logZ, logN, kappa, kappa0, J, newLogZ):
     for k in range(kappa.shape[0]):
         c = np.empty(J.shape[0])
         for i in range(J.shape[0]):
-            c[i] = -logsumexp1d(logN - logZ - np.sum((kappa[k] - kappa0) * J[i], axis=1))
+            c[i] = -logsumexp1d(
+                logN - logZ - np.sum((kappa[k] - kappa0) * J[i], axis=1)
+            )
         newLogZ[k] = logsumexp1d(c)
 
 
+# TODO: This code is essentially duplicating what is done in pyRw.core
+# Replace with a generalised itersolve function, which will take a specific iterfn
+# argument
 def ndItersolve(logN, kappa0, J, tol=1e-10, max_iter=50000, verbose=True):
-
-    #if not (len(logN) == len(betas)):
-    #    raise ValueError("logN and betas should have the same length")
-
     f = np.zeros(kappa0.shape[0])
 
     for i in range(max_iter):
@@ -150,25 +158,101 @@ def ndItersolve(logN, kappa0, J, tol=1e-10, max_iter=50000, verbose=True):
     return f
 
 
-#@njit
-@guvectorize(
-        "float64[:], float64[:], float64[:,:], float64[:,:], float64[:,:], float64[:], int32, float64[:]",
-        "(m),(m),(m,q),(k,q),(l,q),(l),(),(k)")
-# m number of source ensembles
-# q dimensionality of parameter
-# l number of measurements
-def ndGetQn(logZ, logN, kappa0, kappa, J, Q, n, newQ):
+# Faster kernel if all values are positive
+@njit
+# @guvectorize(
+#        "float64[:], float64[:], float64[:,:], float64[:,:], float64[:,:], float64[:], int32, float64[:]",
+#        "(m),(m),(m,q),(k,q),(l,q),(l),(),(k)")
+## m number of source ensembles
+## q dimensionality of parameter
+## l number of measurements
+def ndGetQn_(logZ, logN, kappa0, kappa, J, Q, n, newQ):
     newLogZ = np.empty_like(newQ)
 
-    Qsafe = np.empty_like(Q) # probably want to mask here
+    Qsafe = np.empty_like(Q)  # probably want to mask here
     Qsafe[:] = np.where(Q == 0, 1e-10, Q)
 
     for k in range(kappa.shape[0]):
         c = np.empty(J.shape[0])
         for i in range(J.shape[0]):
-            c[i] = -logsumexp1d(logN - logZ - np.sum((kappa[k] - kappa0) * J[i], axis=1))
+            c[i] = -logsumexp1d(
+                logN - logZ - np.sum((kappa[k] - kappa0) * J[i], axis=1)
+            )
         newLogZ[k] = logsumexp1d(c)
         newQ[k] = logsumexp1d(n * np.log(Qsafe) + c) - newLogZ[k]
 
         newQ[k] = np.exp(newQ[k])
 
+
+# Slower kernel that can deal with negative values
+@njit
+def ndGetQn(logZ, logN, kappa0, kappa, J, Q, n, newQ):
+    Nk = kappa.shape[0]  # target values
+    Ncfg = Q.shape[0]
+
+    # Mask and index
+    mask_p = Q > 0.0
+    mask_m = Q < 0.0  # ~mask_p
+
+    idx_p = np.where(mask_p)[0]  # positive obs values
+    idx_m = np.where(mask_m)[0]
+
+    Np = idx_p.shape[0]
+    Nm = idx_m.shape[0]
+
+    for k in range(Nk):  # for each target kappa
+        dk = kappa[k] - kappa0
+
+        # Compute weight for each configuration
+        c = np.empty(Ncfg)
+        for i in range(Ncfg):
+            # energy shift per histogram
+            shift = np.sum(dk * J[i], axis=1)
+            c[i] = -logsumexp1d(logN - logZ - shift)
+
+        # Sector partition functions
+        c_p = c[idx_p]
+        c_m = c[idx_m]
+
+        logZp = logsumexp1d(c_p) if Np > 0 else -np.inf
+        logZm = logsumexp1d(c_m) if Nm > 0 else -np.inf
+
+        # Total Z
+        if logZp > logZm:
+            logZtot = logZp + np.log1p(np.exp(logZm - logZp))
+        else:
+            logZtot = logZm + np.log1p(np.exp(logZp - logZm))
+
+        # Sector expectation values
+        # positive sector
+        if Np > 0:
+            tmp_p = np.empty(Np)
+            for i in range(Np):
+                idx = idx_p[i]
+                tmp_p[i] = n * np.log(Q[idx]) + c[idx]
+            logEp = logsumexp1d(tmp_p) - logZp
+        else:
+            logEp = -np.inf
+
+        # negative sector
+        if Nm > 0:
+            tmp_m = np.empty(Nm)
+            for i in range(Nm):
+                idx = idx_m[i]
+                tmp_m[i] = n * np.log(-Q[idx]) + c[idx]
+            logEm = logsumexp1d(tmp_m) - logZm
+        else:
+            logEm = -np.inf
+
+        # Recombine with weights
+        # numerator = Zp * Ep - Zm * Em
+        term_p = logZp + logEp
+        term_m = logZm + logEm
+
+        # stable signed subtraction
+        if term_p > term_m:
+            num = np.exp(term_p) * (1.0 - np.exp(term_m - term_p))
+        else:
+            num = -np.exp(term_m) * (1.0 - np.exp(term_p - term_m))
+
+        newQ[k] = num / np.exp(logZtot)

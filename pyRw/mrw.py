@@ -172,7 +172,7 @@ def BootstrapRw(
     observable,
     target_betas,
     num_bootstraps,
-    volume,
+    Ns=[1],
     tau=None,
     verbose=False,
 ):
@@ -186,9 +186,11 @@ def BootstrapRw(
     # Resize samples for autocorrelation
     bs_sizes = [len(action[i]) // (2 * int(np.ceil(tau[i]))) for i in range(len(betas))]
 
-    # Bootstrap observable and susceptibility
-    bs_samples_susc = []
-    bs_samples_obs = []
+    # Bootstrap observable moments
+    # List of dictionaries, each list element
+    # holding the moments
+    target_values = []
+
     for _ in range(num_bootstraps):
         # Aggregate sample action and observable measurements
         action_ = []
@@ -200,35 +202,57 @@ def BootstrapRw(
 
         # Reweight
         mrw = MultiRw(betas, action_, verbose=verbose)
-        x = mrw.reweight(observable_, target_betas)
-        x2 = mrw.reweight(observable_, target_betas, n=2)
 
-        # Collect results
-        bs_samples_susc.append(volume * (x2 - x**2))
-        bs_samples_obs.append(x)
+        # Interpolate moments of observable
+        target_values.append({})
+        for n in Ns:
+            target_values[-1][n] = mrw.reweight(observable_, target_betas, n=n)
 
-    # Calculate bootstrap mean and error
-    mean_obs = np.mean(bs_samples_obs, axis=0)
-    error_obs = np.std(bs_samples_obs, axis=0)
-    mean_susc = np.mean(bs_samples_susc, axis=0)
-    error_susc = np.std(bs_samples_susc, axis=0)
-
-    return mean_obs, error_obs, mean_susc, error_susc
+    return target_values
 
 
 class ndMrw:
+    """
+    Multi-histogram reweighting for n-dimensional parameter.
+
+    J should be provided as a list of 2d arrays, with
+    the first (outer) list indexed by the sample source;
+    the second indexed by the measurement number;
+    the last index is the dimension of the vector parameter.
+
+    E.g. # with A_i, B_i : 1d vectors of length number of measurements
+    j1 = np.vstack([A_1, B_1]) # sample from first kappa_1
+    j2 = np.vstack([S_2, B_2]) # sample from second kappa_2
+    ...
+
+    J = [j1, j2]
+
+    """
 
     def __init__(self, kappa0, J):
+        # TODO: Add check on J shape:
+        # All J[i] should be enforced as 2d arrays; all should have same J[i].shape[1]
+        self.J = np.hstack(J).T
 
-        #self.J = np.concatenate(J)
-        self.J = np.vstack([np.concatenate([l[:, i] for l in J]) for i in range(J[0].shape[1])]).T
+        # TODO: Add check on kappa0:
+        # Should be 2d array with kappa0.shape[1] == J[i].shape[1]
         self.kappa0 = kappa0
-        
-        self.logN = [np.log(j.shape[0]) for j in J]
+
+        self.logN = np.array([np.log(j.shape[0]) for j in J])
         self.logZ = pyRw.ndimcore.ndItersolve(self.logN, kappa0, self.J)
 
     def reweight(self, Q, kappa, n=1):
+        # TODO: Add check on kappa shape:
+        # should be a 2d array with kappa.shape[1] = kappa0.shape[1]
         newQ = np.empty(kappa.shape[0])
-        pyRw.ndimcore.ndGetQn(self.logZ, self.logN, self.kappa0, kappa, self.J, Q, n, newQ)
-        return newQ
 
+        # if all observable values are positive use faster kernel
+        if np.all(Q >= 0):
+            pyRw.ndimcore.ndGetQn_(
+                self.logZ, self.logN, self.kappa0, kappa, self.J, Q, n, newQ
+            )
+        else:
+            pyRw.ndimcore.ndGetQn(  # slower kernel if observable is negative valued
+                self.logZ, self.logN, self.kappa0, kappa, self.J, Q, n, newQ
+            )
+        return newQ
