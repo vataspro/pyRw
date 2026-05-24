@@ -198,6 +198,87 @@ def getQn(logZ, logN, betas, beta, Es, Q, n, newQ):
         newQ[k] = np.exp(newQ[k])
 
 
+# @guvectorize(
+#    "float64[:], float64[:], float64[:], float64[:], float64[:], float64[:], float64, float64[:]",
+#    "(m),(m),(m),(k),(l),(l),()->(k)",
+# )
+# TODO: Revectorize?
+# TODO: Documentation for how this kernel works
+@njit
+def getQn_(logZ, logN, betas, beta, Es, Q, newQ):
+    """
+    Estimate an observable <Q> using reweighting,
+    generalised kernel supporting negative valued
+    observables.
+
+    """
+
+    # Number of measurements of Q
+    num_cfg = Q.shape[0]
+
+    # Mask for positive and negative values
+    mask_p = Q > 0.0
+    mask_m = Q < 0.0
+
+    # Global indexes of positive and negative Q values
+    idx_p = np.where(mask_p)[0]
+    idx_m = np.where(mask_m)[0]
+
+    # Length of positive and negative elements
+    num_p = idx_p.shape[0]
+    num_m = idx_m.shape[0]
+
+    # For every target beta
+    for k in range(beta.shape[0]):
+        # compute weights
+        c = np.empty(num_cfg)
+        for i in range(num_cfg):
+            c[i] = -beta[k] * Es[i] - logsumexp1d(logN - logZ - betas * Es[i])
+
+        logZp = logsumexp1d(c[idx_p]) if num_p > 0 else -np.inf
+        logZm = logsumexp1d(c[idx_m]) if num_m > 0 else -np.inf
+
+        # total Z
+        if logZp > logZm:
+            logZtot = logZp + np.log1p(np.exp(logZm - logZp))
+        else:
+            logZtot = logZm + np.log1p(np.exp(logZp - logZm))
+
+        # positive
+        if num_p > 0:
+            buf_p = np.empty(num_p)
+            for i in range(num_p):
+                gi = idx_p[i]
+                buf_p[i] = np.log(Q[gi]) + c[gi]
+            logQp = logsumexp1d(buf_p) - logZp
+        else:
+            logQp = -np.inf
+
+        # negative
+        if num_m > 0:
+            buf_m = np.empty(num_m)
+            for i in range(num_m):
+                gi = idx_m[i]
+                buf_m[i] = np.log(-Q[gi]) + c[gi]
+            logQm = logsumexp1d(buf_m) - logZm
+        else:
+            logQm = -np.inf
+
+        term_p = logZp + logQp
+        term_m = logZm + logQm
+
+        if term_p > term_m:
+            sign = 1.0
+            log_num = term_p + np.log1p(-np.exp(term_m - term_p))
+        else:
+            sign = -1.0
+            log_num = term_m + np.log1p(-np.exp(term_p - term_m))
+
+        # signed log subtraction
+        newQ[k] = sign * np.exp(log_num - logZtot)
+    return newQ
+
+
 def itersolve(logN, betas, E, tol=1e-10, max_iter=50000, verbose=True):
     """
     Iterative solve for logZ.

@@ -120,16 +120,35 @@ class MultiRw:
         # Reweight
         b = np.array(beta)
         q = np.empty_like(beta)
-        q = pyRw.core.getQn(
-            self.logZ,
-            self.logN,
-            self.betas,
-            b,
-            np.concatenate(self.E),
-            np.concatenate(Q_),
-            n,
-            q,
-        )
+
+        # Check for negative observable values
+        if np.all(np.concatenate(Q_) > 0.0) or ((n % 2) == 0):
+            # positive observable
+            q = pyRw.core.getQn(
+                self.logZ,
+                self.logN,
+                self.betas,
+                b,
+                np.concatenate(self.E),
+                np.abs(np.concatenate(Q_)),
+                n,
+                q,
+            )
+        else:
+            if n != 1:
+                raise ValueError(
+                    "Cannot indirectly estimate odd higher moments of a non-postive valued observable"
+                )
+            # observable contains negative values
+            q = pyRw.core.getQn_(
+                self.logZ,
+                self.logN,
+                self.betas,
+                b,
+                np.concatenate(self.E),
+                np.concatenate(Q_),
+                q,
+            )
 
         return q
 
