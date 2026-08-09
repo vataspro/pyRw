@@ -153,38 +153,6 @@ class MultiRw:
         return q
 
 
-"""
-Run the BootstrapRw  program to boostrap and reweight
-an observable and its susceptibility.
-
-    Inputs:
-        betas   :   1d list
-                The beta values of the ensembles
-        action  :   2d list
-                The action measurements at each beta value.
-        observable : 2d list
-                Observable measurements. Same shape as action.
-        target_betas : 1d np.ndarray
-                Target beta values to reweight at.
-        num_bootstraps : int
-                Number of bootstrap samples used in the calculation.
-        volume  :   int
-                Lattice volume Nt*Nx*Ny*Nz
-        tau     :   1d list
-                Integrated autocorrelation time for each ensemble.
-
-    Returns:
-        mean_obs :  1d np.ndarray
-                mean value of the observable
-        error_obs :  1d np.ndarray
-                bootstrap error of the observable
-        mean_susc :  1d np.ndarray
-                mean value of the susceptibility
-        error_susc :  1d np.ndarray
-                bootstrap error of the susceptibility
-"""
-
-
 def BootstrapRw(
     betas,
     action,
@@ -195,6 +163,36 @@ def BootstrapRw(
     tau=None,
     verbose=False,
 ):
+    """
+    Run the BootstrapRw  program to boostrap and reweight
+    an observable and its susceptibility.
+
+        Inputs:
+            betas   :   1d list
+                    The beta values of the ensembles
+            action  :   2d list
+                    The action measurements at each beta value.
+            observable : 2d list
+                    Observable measurements. Same shape as action.
+            target_betas : 1d np.ndarray
+                    Target beta values to reweight at.
+            num_bootstraps : int
+                    Number of bootstrap samples used in the calculation.
+            volume  :   int
+                    Lattice volume Nt*Nx*Ny*Nz
+            tau     :   1d list
+                    Integrated autocorrelation time for each ensemble.
+
+        Returns:
+            mean_obs :  1d np.ndarray
+                    mean value of the observable
+            error_obs :  1d np.ndarray
+                    bootstrap error of the observable
+            mean_susc :  1d np.ndarray
+                    mean value of the susceptibility
+            error_susc :  1d np.ndarray
+                    bootstrap error of the susceptibility
+    """
     # Calculate autocorrelation times
     if tau is None:
         tau = [
@@ -228,6 +226,60 @@ def BootstrapRw(
             target_values[-1][n] = mrw.reweight(observable_, target_betas, n=n)
 
     return target_values
+
+
+class BootstrapRwSaver:
+    def __init__(self, betas, action, num_bootstraps, tau=None, verbose=False):
+        # List contains all instances of MultiRws
+        self.mrw = []
+        self.bs_idx = []
+
+        self.betas = betas
+
+        # Calculate autocorrelation times
+        if tau is None:
+            tau = [
+                pyRw.autocorr.integrated_autocorrelation_time(action[i])
+                for i in range(len(betas))
+            ]
+
+        # Resize samples for autocorrelation
+        bs_sizes = [
+            len(action[i]) // (2 * int(np.ceil(tau[i]))) for i in range(len(betas))
+        ]
+
+        # Get LogZ for every bs sample
+        for _ in range(num_bootstraps):
+            # Aggregate sample action and observable measurements
+            action_ = []
+            bs_idx_ = []
+            # observable_ = []
+            for i in range(len(betas)):
+                bs_idx_.append(np.random.randint(0, len(action[i]), bs_sizes[i]))
+                action_.append(np.array(action[i][bs_idx_[-1]]))
+
+            # Reweight
+            self.mrw.append(MultiRw(betas, action_, verbose=verbose))
+            # and save bs indices
+            self.bs_idx.append(bs_idx_)
+
+    def reweight(self, observable, target_betas, Ns=[1]):
+        target_values = []
+        for sample_num, idx in enumerate(self.bs_idx):
+            observable_ = [
+                np.array(np.array(observable[i])[idx[i]])
+                for i in range(len(self.betas))
+            ]
+            # for i in len(betas):
+            #    observable_.append(np.array(observable[i][idx]))
+            # Interpolate moments of observable
+            target_values.append({})
+            for n in Ns:
+                target_values[-1][n] = self.mrw[sample_num].reweight(
+                    observable_, target_betas, n=n
+                )
+
+        return target_values
 
 
 class ndMrw:
