@@ -153,36 +153,6 @@ class MultiRw:
         return q
 
 
-"""
-Run the BootstrapRw  program to boostrap and reweight
-an observable and its susceptibility.
-
-    Inputs:
-        betas   :   1d list
-                The beta values of the ensembles
-        action  :   2d list
-                The action measurements at each beta value.
-        observable : 2d list
-                Observable measurements. Same shape as action.
-        target_betas : 1d np.ndarray
-                Target beta values to reweight at.
-        num_bootstraps : int
-                Number of bootstrap samples used in the calculation.
-        volume  :   int
-                Lattice volume Nt*Nx*Ny*Nz
-        tau     :   1d list
-                Integrated autocorrelation time for each ensemble.
-
-    Returns:
-        mean_obs :  1d np.ndarray
-                mean value of the observable
-        error_obs :  1d np.ndarray
-                bootstrap error of the observable
-        mean_susc :  1d np.ndarray
-                mean value of the susceptibility
-        error_susc :  1d np.ndarray
-                bootstrap error of the susceptibility
-"""
 
 
 def BootstrapRw(
@@ -195,6 +165,38 @@ def BootstrapRw(
     tau=None,
     verbose=False,
 ):
+    """
+    Run multiple boostrap samples of the reweighting
+    of an observable and its moments.
+    
+        Inputs:
+            betas   :   1d list
+                    The beta values of the ensembles
+            action  :   2d list
+                    The action measurements at each beta value.
+            observable : 2d list
+                    Observable measurements. Same shape as action.
+            target_betas : 1d np.ndarray
+                    Target beta values to reweight at.
+            num_bootstraps : int
+                    Number of bootstrap samples used in the calculation.
+            Ns      : list
+                    A list of integers corresponding to the requested
+                    observable moments.
+            tau     :   bool
+                    Implement autocorrelation thinning for each ensemble.
+            verbose :   bool
+                    Print iteration error to stdout.
+    
+        Returns:
+            target_values : list of dictionaries
+                    Each list element is a dictionary with keys
+                    corresponding to the requested integer cumulants
+                    in the list 'Ns'. The corresponding element is a
+                    1D numpy array matching the requested moment with
+                    the same indexing as target_betas.
+    """
+
     # Calculate autocorrelation times
     if tau is None:
         tau = [
