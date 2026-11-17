@@ -119,17 +119,23 @@ def getLogZ(logZ, logN, betas, beta, Es, newLogZ):
             The measured values of the energy (or Euclidean action).
             The length [l] is the sum of the number of the measurements
             at each of the known β values in betas:
-                l = Σ_{i=0}^{m-1} N_i
-            Please ensure that this has been flattened correctly in
+
+            .. math::
+
+                l = \\sum_{i=0}^{m-1} N_i
+
+
+            Ensure that this has been flattened correctly in
             agreement with the inputted betas and logN arrays.
+
 
     Outputs:
         newLogZ :   numpy.ndarray   [k]
-            The interpolated values of
+            The interpolated values of logZ.
+            
 
     References:
-        [1] Newman, M. E. J. & Berkema, G.T., "Monte Carlo Methods in
-            Statistical Physics", Chapter 8.
+        [1] Newman, M. E. J. & Berkema, G.T., "Monte Carlo Methods in Statistical Physics", Chapter 8.
         [2] https://www.mv.helsinki.fi/home/rummukai/lectures/montecarlo_oulu/lectures/mc_notes4.pdf
 
     """
@@ -165,8 +171,13 @@ def getQn(logZ, logN, betas, beta, Es, Q, n, newQ):
             The measured values of the observable.
             The length [l] is the sum of the number of the measurements
             at each of the known β values in betas:
-                l = Σ_{i=0}^{m-1} N_i
-            Please ensure that this has been flattened correctly in
+
+            .. math::
+
+                l = \\sum_{i=0}^{m-1} N_i
+
+
+            Ensure that this has been flattened correctly in
             agreement with the inputted betas and logN arrays. The indexing
             of the Es and Qs arrays should also be consistent with each other.
         n       :   float
@@ -181,6 +192,7 @@ def getQn(logZ, logN, betas, beta, Es, Q, n, newQ):
     References:
         [1] Newman, M. E. J. & Berkema, G.T., "Monte Carlo Methods in
         Statistical Physics", Chapter 8.
+
     """
 
     newLogZ = np.empty_like(newQ)
@@ -295,6 +307,7 @@ def itersolve(logN, betas, E, tol=1e-10, max_iter=50000, verbose=True):
     Returns:
         logZ    :   1d numpy.ndarray
             The solution for logZ from the iterative solver.
+
     """
 
     if not (len(logN) == len(betas)):
