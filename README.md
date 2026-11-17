@@ -28,6 +28,8 @@ This leaves a few sharp edges in the code,
 which is envisioned to be used via the
 `MultiRw` interface class from `pyRw/mrw.py`.
 
+For more details see the [documentation](https://vataspro.github.io/pyRw/).
+
 ## Testing
 
 Testing of the code is implemented in
